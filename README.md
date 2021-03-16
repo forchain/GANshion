@@ -1,4 +1,4 @@
-# FashionGAN
+# GANshion
 Student project for fanshion using GAN
 
 ## database
