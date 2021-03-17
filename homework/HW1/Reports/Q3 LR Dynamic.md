@@ -53,16 +53,16 @@ print(device_lib.list_local_devices())
     memory_limit: 268435456
     locality {
     }
-    incarnation: 646318878256201274
+    incarnation: 13812897125674287148
     , name: "/device:GPU:0"
     device_type: "GPU"
-    memory_limit: 7491766208
+    memory_limit: 7490287712
     locality {
       bus_id: 1
       links {
       }
     }
-    incarnation: 3901178883910210642
+    incarnation: 16579279997265830587
     physical_device_desc: "device: 0, name: Quadro RTX 4000, pci bus id: 0000:01:00.0, compute capability: 7.5"
     ]
 
@@ -375,8 +375,9 @@ we sum up, hidden units, layer number, epoch number, and the final code is as be
 
 
 ```python
-Q2 = True
-if Q2:
+Q2 = False
+Q3 = True
+if Q2 or Q3:
     # since we just try to find the best parameters, so we just try 10 epochs
     num_epochs = 20
 
@@ -397,73 +398,110 @@ if Q2:
     model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
                   metrics=['accuracy'])
-
+if Q2:
     history=model.fit(train_data,
                       steps_per_epoch =train_steps_per_epoch,
                       validation_data=valid_data,
                       epochs=num_epochs,
                       validation_steps=valid_steps_per_epoch)
-exit()
 ```
 
-    Model: "sequential_1"
+    Model: "sequential_2"
     _________________________________________________________________
     Layer (type)                 Output Shape              Param #   
     =================================================================
-    reshape_1 (Reshape)          (None, 30000)             0         
+    reshape_2 (Reshape)          (None, 30000)             0         
     _________________________________________________________________
-    dense_4 (Dense)              (None, 1024)              30721024  
+    dense_8 (Dense)              (None, 1024)              30721024  
     _________________________________________________________________
-    dense_5 (Dense)              (None, 1024)              1049600   
+    dense_9 (Dense)              (None, 1024)              1049600   
     _________________________________________________________________
-    dense_6 (Dense)              (None, 1024)              1049600   
+    dense_10 (Dense)             (None, 1024)              1049600   
     _________________________________________________________________
-    dense_7 (Dense)              (None, 250)               256250    
+    dense_11 (Dense)             (None, 250)               256250    
     =================================================================
     Total params: 33,076,474
     Trainable params: 33,076,474
     Non-trainable params: 0
     _________________________________________________________________
+
+
+
+```python
+#%%
+
+from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
+num_epochs = 20
+
+# dynamic
+def lr_schedule(epoch):
+    """Learning rate scheduler - called every epoch"""
+    
+    # starting point
+    lr = 1e-4
+    # dynamic
+    if epoch > 15:
+        lr = 1e-5
+
+    return lr
+
+lr_scheduler = LearningRateScheduler(lr_schedule)
+
+lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
+                               cooldown=0,
+                               patience=5,
+                               min_lr=0.5e-6)
+
+#callbacks = [lr_reducer, lr_scheduler]
+callbacks = [ lr_scheduler]
+history=model.fit(train_data,
+                  steps_per_epoch =train_steps_per_epoch,
+                  validation_data=valid_data,
+                  epochs=num_epochs,
+                  validation_steps=valid_steps_per_epoch, callbacks=callbacks)
+exit()
+```
+
     Epoch 1/20
-    276/276 [==============================] - 27s 99ms/step - loss: 7.2865 - accuracy: 0.0093 - val_loss: 4.8274 - val_accuracy: 0.0464
+    276/276 [==============================] - 27s 99ms/step - loss: 5.5038 - accuracy: 0.0105 - val_loss: 4.9671 - val_accuracy: 0.0480
     Epoch 2/20
-    276/276 [==============================] - 27s 97ms/step - loss: 4.7922 - accuracy: 0.0476 - val_loss: 4.3692 - val_accuracy: 0.0832
+    276/276 [==============================] - 27s 98ms/step - loss: 4.8329 - accuracy: 0.0533 - val_loss: 4.4538 - val_accuracy: 0.0912
     Epoch 3/20
-    276/276 [==============================] - 27s 97ms/step - loss: 4.3926 - accuracy: 0.0875 - val_loss: 4.0624 - val_accuracy: 0.1248
+    276/276 [==============================] - 27s 99ms/step - loss: 4.4378 - accuracy: 0.0964 - val_loss: 4.0983 - val_accuracy: 0.1208
     Epoch 4/20
-    276/276 [==============================] - 27s 98ms/step - loss: 4.1073 - accuracy: 0.1230 - val_loss: 3.9017 - val_accuracy: 0.1328
+    276/276 [==============================] - 27s 98ms/step - loss: 4.1358 - accuracy: 0.1380 - val_loss: 3.8845 - val_accuracy: 0.1576
     Epoch 5/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.9027 - accuracy: 0.1498 - val_loss: 3.7048 - val_accuracy: 0.1664
+    276/276 [==============================] - 27s 98ms/step - loss: 3.9090 - accuracy: 0.1685 - val_loss: 3.7236 - val_accuracy: 0.1816
     Epoch 6/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.6984 - accuracy: 0.1815 - val_loss: 3.5390 - val_accuracy: 0.2128
+    276/276 [==============================] - 27s 98ms/step - loss: 3.7185 - accuracy: 0.2025 - val_loss: 3.6255 - val_accuracy: 0.1912
     Epoch 7/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.5089 - accuracy: 0.2072 - val_loss: 3.5863 - val_accuracy: 0.2064
+    276/276 [==============================] - 27s 99ms/step - loss: 3.5768 - accuracy: 0.2228 - val_loss: 3.4823 - val_accuracy: 0.2112
     Epoch 8/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.3496 - accuracy: 0.2381 - val_loss: 3.6000 - val_accuracy: 0.1944
+    276/276 [==============================] - 27s 99ms/step - loss: 3.4411 - accuracy: 0.2468 - val_loss: 3.3512 - val_accuracy: 0.2472
     Epoch 9/20
-    276/276 [==============================] - 27s 99ms/step - loss: 3.2114 - accuracy: 0.2525 - val_loss: 3.4725 - val_accuracy: 0.2264
+    276/276 [==============================] - 27s 99ms/step - loss: 3.3002 - accuracy: 0.2746 - val_loss: 3.3451 - val_accuracy: 0.2360
     Epoch 10/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.0609 - accuracy: 0.2794 - val_loss: 3.4860 - val_accuracy: 0.2480
+    276/276 [==============================] - 27s 99ms/step - loss: 3.1468 - accuracy: 0.2984 - val_loss: 3.2931 - val_accuracy: 0.2568
     Epoch 11/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.9046 - accuracy: 0.3058 - val_loss: 3.3841 - val_accuracy: 0.2584
+    276/276 [==============================] - 27s 99ms/step - loss: 3.0718 - accuracy: 0.3115 - val_loss: 3.1475 - val_accuracy: 0.2768
     Epoch 12/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.7059 - accuracy: 0.3374 - val_loss: 3.4007 - val_accuracy: 0.2616
+    276/276 [==============================] - 27s 99ms/step - loss: 2.7979 - accuracy: 0.3697 - val_loss: 3.0359 - val_accuracy: 0.2992
     Epoch 13/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.5426 - accuracy: 0.3677 - val_loss: 3.5211 - val_accuracy: 0.2584
+    276/276 [==============================] - 27s 98ms/step - loss: 2.7566 - accuracy: 0.3814 - val_loss: 3.0174 - val_accuracy: 0.3032
     Epoch 14/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.4028 - accuracy: 0.3989 - val_loss: 3.5684 - val_accuracy: 0.2624
+    276/276 [==============================] - 27s 99ms/step - loss: 2.7172 - accuracy: 0.3904 - val_loss: 3.0133 - val_accuracy: 0.3000
     Epoch 15/20
-    276/276 [==============================] - 27s 99ms/step - loss: 2.1744 - accuracy: 0.4444 - val_loss: 3.6805 - val_accuracy: 0.2720
+    276/276 [==============================] - 27s 98ms/step - loss: 2.6862 - accuracy: 0.3936 - val_loss: 3.0210 - val_accuracy: 0.3024
     Epoch 16/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.9996 - accuracy: 0.4840 - val_loss: 3.7594 - val_accuracy: 0.2752
+    276/276 [==============================] - 27s 99ms/step - loss: 2.6743 - accuracy: 0.3954 - val_loss: 3.0013 - val_accuracy: 0.2984
     Epoch 17/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.8144 - accuracy: 0.5209 - val_loss: 3.8970 - val_accuracy: 0.2712
+    276/276 [==============================] - 27s 98ms/step - loss: 2.6699 - accuracy: 0.4033 - val_loss: 3.0051 - val_accuracy: 0.3040
     Epoch 18/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.7154 - accuracy: 0.5437 - val_loss: 4.1089 - val_accuracy: 0.2824
+    276/276 [==============================] - 27s 98ms/step - loss: 2.6388 - accuracy: 0.4080 - val_loss: 2.9881 - val_accuracy: 0.3000
     Epoch 19/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.5299 - accuracy: 0.5911 - val_loss: 4.3691 - val_accuracy: 0.2744
+    276/276 [==============================] - 27s 99ms/step - loss: 2.6435 - accuracy: 0.4036 - val_loss: 2.9823 - val_accuracy: 0.3072
     Epoch 20/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.3728 - accuracy: 0.6273 - val_loss: 4.4214 - val_accuracy: 0.2816
+    276/276 [==============================] - 27s 99ms/step - loss: 2.6335 - accuracy: 0.4074 - val_loss: 2.9782 - val_accuracy: 0.3064
 
 
 
@@ -504,7 +542,7 @@ def build_model(hp):
 
     ModuleNotFoundError                       Traceback (most recent call last)
 
-    <ipython-input-21-2db584aa9595> in <module>
+    <ipython-input-12-2db584aa9595> in <module>
     ----> 1 from kerastuner.tuners import RandomSearch
           2 
           3 def build_model(hp):

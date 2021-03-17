@@ -53,17 +53,17 @@ print(device_lib.list_local_devices())
     memory_limit: 268435456
     locality {
     }
-    incarnation: 646318878256201274
+    incarnation: 14347137527310099625
     , name: "/device:GPU:0"
     device_type: "GPU"
-    memory_limit: 7491766208
+    memory_limit: 1440940032
     locality {
       bus_id: 1
       links {
       }
     }
-    incarnation: 3901178883910210642
-    physical_device_desc: "device: 0, name: Quadro RTX 4000, pci bus id: 0000:01:00.0, compute capability: 7.5"
+    incarnation: 17277068629980852680
+    physical_device_desc: "device: 0, name: GeForce GTX 860M, pci bus id: 0000:01:00.0, compute capability: 5.0"
     ]
 
 
@@ -77,6 +77,9 @@ tf.test.is_gpu_available()
 print(tf.test.is_built_with_cuda())
 ```
 
+    WARNING:tensorflow:From <ipython-input-3-ca90116ab0f5>:5: is_gpu_available (from tensorflow.python.framework.test_util) is deprecated and will be removed in a future version.
+    Instructions for updating:
+    Use `tf.config.list_physical_devices('GPU')` instead.
     True
 
 
@@ -375,8 +378,9 @@ we sum up, hidden units, layer number, epoch number, and the final code is as be
 
 
 ```python
-Q2 = True
-if Q2:
+Q2 = False
+Q3 = True
+if Q2 or Q3:
     # since we just try to find the best parameters, so we just try 10 epochs
     num_epochs = 20
 
@@ -397,73 +401,111 @@ if Q2:
     model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
                   metrics=['accuracy'])
-
+if Q2:
     history=model.fit(train_data,
                       steps_per_epoch =train_steps_per_epoch,
                       validation_data=valid_data,
                       epochs=num_epochs,
                       validation_steps=valid_steps_per_epoch)
-exit()
 ```
 
-    Model: "sequential_1"
+    Model: "sequential"
     _________________________________________________________________
     Layer (type)                 Output Shape              Param #   
     =================================================================
-    reshape_1 (Reshape)          (None, 30000)             0         
+    reshape (Reshape)            (None, 30000)             0         
     _________________________________________________________________
-    dense_4 (Dense)              (None, 1024)              30721024  
+    dense (Dense)                (None, 1024)              30721024  
     _________________________________________________________________
-    dense_5 (Dense)              (None, 1024)              1049600   
+    dense_1 (Dense)              (None, 1024)              1049600   
     _________________________________________________________________
-    dense_6 (Dense)              (None, 1024)              1049600   
+    dense_2 (Dense)              (None, 1024)              1049600   
     _________________________________________________________________
-    dense_7 (Dense)              (None, 250)               256250    
+    dense_3 (Dense)              (None, 250)               256250    
     =================================================================
     Total params: 33,076,474
     Trainable params: 33,076,474
     Non-trainable params: 0
     _________________________________________________________________
+
+
+
+```python
+
+from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
+num_epochs = 20
+
+# dynamic
+def lr_schedule(epoch):
+    """Learning rate scheduler - called every epoch"""
+    
+    # staic
+    lr = 1e-4
+    
+    # dynamic
+    #lr = 1e-3
+    #fold = int(epoch / 10) + 1
+    #lr /=  fold
+
+    return lr
+
+lr_scheduler = LearningRateScheduler(lr_schedule)
+
+lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
+                               cooldown=0,
+                               patience=5,
+                               min_lr=0.5e-6)
+
+#callbacks = [lr_reducer, lr_scheduler]
+callbacks = [ lr_scheduler]
+history=model.fit(train_data,
+                  steps_per_epoch =train_steps_per_epoch,
+                  validation_data=valid_data,
+                  epochs=num_epochs,
+                  validation_steps=valid_steps_per_epoch, callbacks=callbacks)
+exit()
+```
+
     Epoch 1/20
-    276/276 [==============================] - 27s 99ms/step - loss: 7.2865 - accuracy: 0.0093 - val_loss: 4.8274 - val_accuracy: 0.0464
+    276/276 [==============================] - 44s 159ms/step - loss: 5.4988 - accuracy: 0.0105 - val_loss: 4.9715 - val_accuracy: 0.0456
     Epoch 2/20
-    276/276 [==============================] - 27s 97ms/step - loss: 4.7922 - accuracy: 0.0476 - val_loss: 4.3692 - val_accuracy: 0.0832
+    276/276 [==============================] - 43s 156ms/step - loss: 4.8421 - accuracy: 0.0536 - val_loss: 4.4832 - val_accuracy: 0.0872
     Epoch 3/20
-    276/276 [==============================] - 27s 97ms/step - loss: 4.3926 - accuracy: 0.0875 - val_loss: 4.0624 - val_accuracy: 0.1248
+    276/276 [==============================] - 43s 156ms/step - loss: 4.4336 - accuracy: 0.0948 - val_loss: 4.1507 - val_accuracy: 0.1288
     Epoch 4/20
-    276/276 [==============================] - 27s 98ms/step - loss: 4.1073 - accuracy: 0.1230 - val_loss: 3.9017 - val_accuracy: 0.1328
+    276/276 [==============================] - 43s 155ms/step - loss: 4.1237 - accuracy: 0.1365 - val_loss: 3.8730 - val_accuracy: 0.1616
     Epoch 5/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.9027 - accuracy: 0.1498 - val_loss: 3.7048 - val_accuracy: 0.1664
+    276/276 [==============================] - 43s 157ms/step - loss: 3.8857 - accuracy: 0.1714 - val_loss: 3.7174 - val_accuracy: 0.2000
     Epoch 6/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.6984 - accuracy: 0.1815 - val_loss: 3.5390 - val_accuracy: 0.2128
+    276/276 [==============================] - 43s 154ms/step - loss: 3.6859 - accuracy: 0.2065 - val_loss: 3.5702 - val_accuracy: 0.2040
     Epoch 7/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.5089 - accuracy: 0.2072 - val_loss: 3.5863 - val_accuracy: 0.2064
+    276/276 [==============================] - 43s 156ms/step - loss: 3.5268 - accuracy: 0.2293 - val_loss: 3.4350 - val_accuracy: 0.2224
     Epoch 8/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.3496 - accuracy: 0.2381 - val_loss: 3.6000 - val_accuracy: 0.1944
+    276/276 [==============================] - 43s 155ms/step - loss: 3.3916 - accuracy: 0.2550 - val_loss: 3.3763 - val_accuracy: 0.2384
     Epoch 9/20
-    276/276 [==============================] - 27s 99ms/step - loss: 3.2114 - accuracy: 0.2525 - val_loss: 3.4725 - val_accuracy: 0.2264
+    276/276 [==============================] - 43s 156ms/step - loss: 3.2539 - accuracy: 0.2798 - val_loss: 3.2876 - val_accuracy: 0.2592
     Epoch 10/20
-    276/276 [==============================] - 27s 98ms/step - loss: 3.0609 - accuracy: 0.2794 - val_loss: 3.4860 - val_accuracy: 0.2480
+    276/276 [==============================] - 43s 154ms/step - loss: 3.1296 - accuracy: 0.3019 - val_loss: 3.2010 - val_accuracy: 0.2776
     Epoch 11/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.9046 - accuracy: 0.3058 - val_loss: 3.3841 - val_accuracy: 0.2584
+    276/276 [==============================] - 43s 155ms/step - loss: 2.9819 - accuracy: 0.3284 - val_loss: 3.2834 - val_accuracy: 0.2552
     Epoch 12/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.7059 - accuracy: 0.3374 - val_loss: 3.4007 - val_accuracy: 0.2616
+    276/276 [==============================] - 43s 156ms/step - loss: 2.9024 - accuracy: 0.3403 - val_loss: 3.1286 - val_accuracy: 0.2928
     Epoch 13/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.5426 - accuracy: 0.3677 - val_loss: 3.5211 - val_accuracy: 0.2584
+    276/276 [==============================] - 43s 156ms/step - loss: 2.7641 - accuracy: 0.3706 - val_loss: 3.0973 - val_accuracy: 0.3040
     Epoch 14/20
-    276/276 [==============================] - 27s 98ms/step - loss: 2.4028 - accuracy: 0.3989 - val_loss: 3.5684 - val_accuracy: 0.2624
+    276/276 [==============================] - 43s 155ms/step - loss: 2.6731 - accuracy: 0.3841 - val_loss: 3.0880 - val_accuracy: 0.2976
     Epoch 15/20
-    276/276 [==============================] - 27s 99ms/step - loss: 2.1744 - accuracy: 0.4444 - val_loss: 3.6805 - val_accuracy: 0.2720
+    276/276 [==============================] - 43s 156ms/step - loss: 2.5630 - accuracy: 0.4096 - val_loss: 3.0609 - val_accuracy: 0.3040
     Epoch 16/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.9996 - accuracy: 0.4840 - val_loss: 3.7594 - val_accuracy: 0.2752
+    276/276 [==============================] - 43s 156ms/step - loss: 2.4709 - accuracy: 0.4251 - val_loss: 3.0643 - val_accuracy: 0.3112
     Epoch 17/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.8144 - accuracy: 0.5209 - val_loss: 3.8970 - val_accuracy: 0.2712
+    276/276 [==============================] - 43s 156ms/step - loss: 2.3883 - accuracy: 0.4425 - val_loss: 3.0195 - val_accuracy: 0.3072
     Epoch 18/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.7154 - accuracy: 0.5437 - val_loss: 4.1089 - val_accuracy: 0.2824
+    276/276 [==============================] - 43s 156ms/step - loss: 2.2532 - accuracy: 0.4727 - val_loss: 3.0183 - val_accuracy: 0.3224
     Epoch 19/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.5299 - accuracy: 0.5911 - val_loss: 4.3691 - val_accuracy: 0.2744
+    276/276 [==============================] - 43s 155ms/step - loss: 2.1844 - accuracy: 0.4862 - val_loss: 2.9645 - val_accuracy: 0.3352
     Epoch 20/20
-    276/276 [==============================] - 27s 98ms/step - loss: 1.3728 - accuracy: 0.6273 - val_loss: 4.4214 - val_accuracy: 0.2816
+    276/276 [==============================] - 43s 156ms/step - loss: 2.0956 - accuracy: 0.5073 - val_loss: 3.0043 - val_accuracy: 0.3280
 
 
 
@@ -498,22 +540,6 @@ def build_model(hp):
         metrics=['accuracy'])
     return model
 ```
-
-
-    ---------------------------------------------------------------------------
-
-    ModuleNotFoundError                       Traceback (most recent call last)
-
-    <ipython-input-21-2db584aa9595> in <module>
-    ----> 1 from kerastuner.tuners import RandomSearch
-          2 
-          3 def build_model(hp):
-          4     model = Sequential()
-          5     model.add(Reshape((-1,), input_shape=(width, width, 3)))
-
-
-    ModuleNotFoundError: No module named 'kerastuner'
-
 
 
 ```python
