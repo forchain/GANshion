@@ -68,9 +68,9 @@ generator=ImageDataGenerator(rescale=1./255)
 # size of the input is necessary because the image
 # needs to be rescaled for the neural network
 
-train_data=generator.flow_from_directory(train_dir, target_size=(width,width),batch_size=batch_size)
-valid_data=generator.flow_from_directory(valid_dir, target_size=(width,width),batch_size=batch_size)
-test_data=generator.flow_from_directory(test_dir, target_size=(width,width),batch_size=batch_size)
+train_data=generator.flow_from_directory(train_dir, target_size=(width,width),batch_size=10000)
+valid_data=generator.flow_from_directory(valid_dir, target_size=(width,width),batch_size=1000)
+test_data=generator.flow_from_directory(test_dir, target_size=(width,width),batch_size=1000)
 
 # the number of steps per epoch is samples/batch size
 # we need to use these numbers later
@@ -281,7 +281,7 @@ class SSAAE():
         return (np.array(vectors).reshape(-1, latent_dim), labels)
 
 if __name__ == '__main__':
-    idx_unlabel = np.random.randint(0, x_train.shape[0], 20)
+    idx_unlabel = np.random.randint(0, x_train.shape[0], 32)
 
     # convert one hot to integer
     y_train = np.argmax(y_train, axis=1)
