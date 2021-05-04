@@ -45,7 +45,7 @@ def generator(inputs,
     image_resize = image_size // 4
     # network parameters
     kernel_size = 5
-    layer_filters = [128, 64, 32, 1]
+    layer_filters = [128, 64, 32, 3]
 
     if labels is not None:
         if codes is None:
@@ -283,8 +283,8 @@ def plot_images(generator,
     image_size = images.shape[1]
     for i in range(num_images):
         plt.subplot(rows, rows, i + 1)
-        image = np.reshape(images[i], [image_size, image_size])
-        plt.imshow(image, cmap='gray')
+        image = np.reshape(images[i], [image_size, image_size, 3])
+        plt.imshow(image, interpolation='none')
         plt.axis('off')
     plt.savefig(filename)
     if show:
