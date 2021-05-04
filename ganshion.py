@@ -179,7 +179,7 @@ def build_and_train_models():
 
     model_name = "acgan_ganshion"
     # network parameters
-    latent_size = 100
+    latent_size = 256
     batch_size = 64
     train_steps = 40000
     lr = 2e-4
