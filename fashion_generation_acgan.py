@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 from imageio import imread, imsave, mimsave
+import cv2
 import glob
 from tqdm import tqdm
 
@@ -30,9 +31,9 @@ tags.head()
 
 # 定义一些常量、网络tensor、辅助函数，批大小设为2的幂比较合适，这里设为64，考虑学习率衰减
 batch_size = 64
-z_dim = 256
-WIDTH = 256
-HEIGHT = 256
+z_dim = 128
+WIDTH = 128
+HEIGHT = 128
 LABEL = 35
 LAMBDA = 0.05
 BETA = 3
@@ -215,6 +216,7 @@ X_all = []
 Y_all = []
 for i in tqdm(range(len(images))):
     image = imread(images[i])
+    image = cv2.resize(image, (HEIGHT, WIDTH))
     image = (image / 255. - 0.5) * 2
     X_all.append(image)
 
