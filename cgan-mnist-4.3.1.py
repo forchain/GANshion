@@ -22,11 +22,11 @@ from __future__ import print_function
 from tensorflow.keras.layers import Activation, Dense, Input
 from tensorflow.keras.layers import Conv2D, Flatten
 from tensorflow.keras.layers import Reshape, Conv2DTranspose
-from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import LeakyReLU, Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import concatenate
 from tensorflow.keras.optimizers import RMSprop
-from tensorflow.keras.models import Model
+from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import load_model
@@ -45,8 +45,31 @@ import tensorflow as tf
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
-assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+if len(physical_devices) > 0:
+    config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+def build_generator_1(inputs, labels, image_size):
+    model = Sequential()
+
+    model.add(Dense(256, input_dim=Z_DIM+LABEL))
+    model.add(LeakyReLU(alpha=0.2))
+    model.add(BatchNormalization(momentum=0.8))
+    model.add(Dense(512))
+    model.add(LeakyReLU(alpha=0.2))
+    model.add(BatchNormalization(momentum=0.8))
+    model.add(Dense(1024))
+    model.add(LeakyReLU(alpha=0.2))
+    model.add(BatchNormalization(momentum=0.8))
+    model.add(Dense(image_size * image_size * CHANNELS, activation='tanh'))
+    model.add(Reshape((image_size, image_size, CHANNELS)))
+
+    model.summary()
+
+    model_input = concatenate([inputs, labels], axis=1)
+    img = model(model_input)
+
+    return Model([inputs, labels], img)
+
 
 def build_generator(inputs, labels, image_size):
     """Build a Generator Model
@@ -93,6 +116,30 @@ def build_generator(inputs, labels, image_size):
     generator = Model([inputs, labels], x, name='generator')
     return generator
 
+def build_discriminator_1(inputs, labels, image_size):
+
+    model = Sequential()
+
+    model.add(Dense(512, input_dim=image_size * image_size * CHANNELS + LABEL))
+    model.add(LeakyReLU(alpha=0.2))
+    model.add(Dense(512))
+    model.add(LeakyReLU(alpha=0.2))
+    model.add(Dropout(0.4))
+    model.add(Dense(512))
+    model.add(LeakyReLU(alpha=0.2))
+    model.add(Dropout(0.4))
+    model.add(Dense(1, activation='sigmoid'))
+    model.summary()
+
+    x = inputs
+    x = Flatten()(x)
+
+    y = labels
+    model_input = concatenate([x, y])
+
+    validity = model(model_input)
+
+    return Model([inputs, labels], validity)
 
 def build_discriminator(inputs, labels, image_size):
     """Build a Discriminator Model
@@ -190,7 +237,7 @@ def train(models, data, params):
     # noise vector to see how the generator output evolves during training
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     # one-hot label the noise will be conditioned to
-    noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
+    noise_class = get_random_tags(16, num_labels)
     # number of elements in train dataset
     train_size = len(x_train)
 
@@ -371,8 +418,9 @@ def build_and_train_models():
     inputs = Input(shape=input_shape, name='discriminator_input')
     labels = Input(shape=label_shape, name='class_labels')
 
-    discriminator = build_discriminator(inputs, labels, image_size)
-    # [1] or original paper uses Adam, 
+    # discriminator = build_discriminator(inputs, labels, image_size)
+    discriminator = build_discriminator_1(inputs, labels, image_size)
+    # [1] or original paper uses Adam,
     # but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     discriminator.compile(loss='binary_crossentropy',
@@ -383,7 +431,8 @@ def build_and_train_models():
     # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
-    generator = build_generator(inputs, labels, image_size)
+    # generator = build_generator(inputs, labels, image_size)
+    generator = build_generator_1(inputs, labels, image_size)
     generator.summary()
 
     # build adversarial model = generator + discriminator
