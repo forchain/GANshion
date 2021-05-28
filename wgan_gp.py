@@ -31,6 +31,11 @@ import pandas as pd
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 tf.compat.v1.disable_eager_execution()
 
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+
 BATCH_SIZE = 100
 Z_DIM = 100
 WIDTH = 64
