@@ -285,13 +285,13 @@ class WGANGP():
 
             y[i, :] = 0
 
-            y[color] = 1
-            y[length] = 1
-            y[patten] = 1
-            y[neckline] = 1
-            y[sleeve] = 1
-            y[fit] = 1
-            y[occasion] = 1
+            y[i, color] = 1
+            y[i, length] = 1
+            y[i, patten] = 1
+            y[i, neckline] = 1
+            y[i, sleeve] = 1
+            y[i, fit] = 1
+            y[i, occasion] = 1
         return y
 
     def sample_images(self, epoch):
