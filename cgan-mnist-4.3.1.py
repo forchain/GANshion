@@ -68,7 +68,7 @@ def build_generator(inputs, labels, image_size):
     image_resize = image_size // 4
     # network parameters
     kernel_size = 5
-    layer_filters = [128, 64, 32, 3]
+    layer_filters = [128, 64, 32, CHANNELS]
 
     x = concatenate([inputs, labels], axis=1)
     x = Dense(image_resize * image_resize * layer_filters[0])(x)
@@ -116,8 +116,8 @@ def build_discriminator(inputs, labels, image_size):
 
     x = inputs
 
-    y = Dense(image_size * image_size * 3)(labels)
-    y = Reshape((image_size, image_size, 3))(y)
+    y = Dense(image_size * image_size * CHANNELS)(labels)
+    y = Reshape((image_size, image_size, CHANNELS))(y)
     x = concatenate([x, y])
 
     for filters in layer_filters:
@@ -307,8 +307,8 @@ def plot_images(generator,
     rows = int(math.sqrt(noise_input.shape[0]))
     for i in range(num_images):
         plt.subplot(rows, rows, i + 1)
-        image = np.reshape(images[i], [image_size, image_size])
-        plt.imshow(image, cmap='gray')
+        image = np.reshape(images[i], [image_size, image_size, CHANNELS])
+        plt.imshow(image)
         plt.axis('off')
     plt.savefig(filename)
     if show:
@@ -325,6 +325,7 @@ LABEL = 35
 SAMPLE_NUM = 999  # 5
 OUTPUT_DIR = 'samples'
 EPOCHS = 40000
+CHANNELS = 3
 
 
 def build_and_train_models():
@@ -363,7 +364,7 @@ def build_and_train_models():
     train_steps = EPOCHS
     lr = 2e-4
     decay = 6e-8
-    input_shape = (image_size, image_size, 3)
+    input_shape = (image_size, image_size, CHANNELS)
     label_shape = (num_labels, )
 
     # build discriminator model
