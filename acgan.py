@@ -71,14 +71,14 @@ class ACGAN():
         losses = ['binary_crossentropy', 'binary_crossentropy']
 
         # Build and compile the discriminator
-        self.discriminator = self.build_discriminator_2()
+        self.discriminator = self.build_discriminator_3()
         self.discriminator.compile(loss=losses,
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
         self.discriminator.summary()
 
         # Build the generator
-        self.generator = self.build_generator_2()
+        self.generator = self.build_generator_3()
         self.generator.summary()
 
         # The generator takes noise and the target label as input
@@ -168,6 +168,32 @@ class ACGAN():
 
         return Model([noise, label], img, name='generator')
 
+    def build_generator_3(self):
+        model = Sequential(name='generator_body')
+
+        image_size = self.img_rows
+        model.add(Dense(256, input_dim=Z_DIM + LABEL))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(512))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(1024))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(image_size * image_size * CHANNELS, activation='tanh'))
+        model.add(Reshape((image_size, image_size, CHANNELS)))
+
+        model.summary()
+
+        inputs = Input(shape=(self.latent_dim,))
+        labels = Input(shape=(self.num_classes,))
+
+        model_input = concatenate([inputs, labels], axis=1)
+        img = model(model_input)
+
+        return Model([inputs, labels], img, name='generator')
+
     def build_discriminator_1(self):
 
         model = Sequential(name='discriminator_body')
@@ -217,7 +243,7 @@ class ACGAN():
         model.add(Conv2D(filters=256, kernel_size=5, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
 
-        model.add(Conv2D(filters=512, kernel_size=5, strides=1, padding="same"))
+        model.add(Conv2D(filters=512, kernel_size=5, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
 
         model.add(Flatten())
@@ -234,6 +260,33 @@ class ACGAN():
 
         label = Dense(self.num_classes)(features)
 
+        return Model(img, [validity, label], name='discriminator')
+
+    def build_discriminator_3(self):
+
+        model = Sequential(name='discriminator_body')
+        image_size = self.img_rows
+        model.add(Dense(512, input_dim=image_size * image_size * CHANNELS))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dense(512))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(512))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        # model.add(Dense(1, activation='sigmoid'))
+        model.summary()
+
+        img = Input(shape=self.img_shape)
+
+        # Extract feature representation
+        x = Flatten()(img)
+        features = model(x)
+
+        # Determine validity and label of the image
+        validity = Dense(1, activation='sigmoid')(features)
+
+        label = Dense(self.num_classes, activation='sigmoid')(features)
 
         return Model(img, [validity, label], name='discriminator')
 
@@ -377,7 +430,7 @@ class ACGAN():
 
             # Plot the progress
             print("%d [D loss: %f, acc.: %.2f%%, op_acc: %.2f%%] [G loss: %f]" % (
-            epoch, d_loss[0], 100 * d_loss[3], 100 * d_loss[4], g_loss[0]))
+                epoch, d_loss[0], 100 * d_loss[3], 100 * d_loss[4], g_loss[0]))
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
