@@ -49,7 +49,7 @@ if len(physical_devices) > 0:
     config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def build_generator_1(inputs, labels, image_size):
-    model = Sequential()
+    model = Sequential(name='generator_body')
 
     model.add(Dense(256, input_dim=Z_DIM+LABEL))
     model.add(LeakyReLU(alpha=0.2))
@@ -118,7 +118,7 @@ def build_generator(inputs, labels, image_size):
 
 def build_discriminator_1(inputs, labels, image_size):
 
-    model = Sequential()
+    model = Sequential(name='discriminator_body')
 
     model.add(Dense(512, input_dim=image_size * image_size * CHANNELS + LABEL))
     model.add(LeakyReLU(alpha=0.2))

@@ -14,8 +14,8 @@ import pandas as pd
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
-assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+if len(physical_devices) > 0:
+    config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 # %%
 
 images = glob.glob('dresses/*.jpg')
@@ -222,7 +222,7 @@ if __name__ == '__main__':
     samples = []
     loss = {'d': [], 'g': []}
 
-    for i in tqdm(range(60000)):
+    for i in tqdm(range(10000)):
         for j in range(DIS_ITERS):
             n = np.random.uniform(-1.0, 1.0, [batch_size, z_dim]).astype(np.float32)
             X_batch, Y_batch = get_random_batch()

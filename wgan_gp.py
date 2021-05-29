@@ -69,6 +69,7 @@ class WGANGP():
         self.x_train = x_train
         self.y_train = y_train
 
+        self.epi = 0.22
         self.img_rows = img_rows
         self.img_cols = img_cols
         self.channels = channels
@@ -76,6 +77,13 @@ class WGANGP():
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.latent_dim = latent_dim
         self.num_classes = num_classes
+
+        def custom_objective(y_true, y_pred):
+            epi = self.epi
+
+            out = -epi * (tf.keras.mean(tf.keras.log(y_pred + 0.00000001)))
+            out += (1 - epi) * tf.keras.sparse_categorical_crossentropy(y_true, y_pred)
+            return out
 
         # Following parameter and optimizer set as recommended in paper
         self.n_critic = 5
@@ -126,8 +134,10 @@ class WGANGP():
             self.wasserstein_loss,
             self.wasserstein_loss,
             partial_gp_loss,
-            tf.keras.losses.MeanSquaredError(),
-            tf.keras.losses.MeanSquaredError(),
+            # tf.keras.losses.MeanSquaredError(),
+            # tf.keras.losses.MeanSquaredError(),
+            custom_objective,
+            custom_objective
         ],
             optimizer=optimizer,
             loss_weights=[1, 1, 10, 2, 2])
