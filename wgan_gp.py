@@ -4,7 +4,6 @@
 
 from __future__ import print_function, division
 
-import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.layers import LeakyReLU
@@ -27,6 +26,8 @@ import cv2
 import glob
 from tqdm import tqdm
 import pandas as pd
+# from tensorflow.keras.losses import binary_crossentropy
+# from tensorflow.keras.backend import mean, log, sparse_categorical_crossentropy
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 tf.compat.v1.disable_eager_execution()
@@ -78,13 +79,6 @@ class WGANGP():
         self.latent_dim = latent_dim
         self.num_classes = num_classes
 
-        def custom_objective(y_true, y_pred):
-            epi = self.epi
-
-            out = -epi * (tf.keras.mean(tf.keras.log(y_pred + 0.00000001)))
-            out += (1 - epi) * tf.keras.sparse_categorical_crossentropy(y_true, y_pred)
-            return out
-
         # Following parameter and optimizer set as recommended in paper
         self.n_critic = 5
         optimizer = RMSprop(lr=0.00005)
@@ -134,10 +128,8 @@ class WGANGP():
             self.wasserstein_loss,
             self.wasserstein_loss,
             partial_gp_loss,
-            # tf.keras.losses.MeanSquaredError(),
-            # tf.keras.losses.MeanSquaredError(),
-            custom_objective,
-            custom_objective
+            'binary_crossentropy',
+           'binary_crossentropy'
         ],
             optimizer=optimizer,
             loss_weights=[1, 1, 10, 2, 2])
@@ -162,7 +154,7 @@ class WGANGP():
         valid, valid_label = self.critic(img)
         # Defines generator model
         self.generator_model = Model([z_gen, label_zen], [valid, valid_label], name='generator_model')
-        self.generator_model.compile(loss=[self.wasserstein_loss, tf.keras.losses.MeanSquaredError()],
+        self.generator_model.compile(loss=[self.wasserstein_loss, 'binary_crossentropy'],
                                      optimizer=optimizer)
         self.generator_model.summary()
 
