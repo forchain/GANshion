@@ -5,7 +5,7 @@ from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply
 from tensorflow.keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2D
 from tensorflow.keras.layers import LeakyReLU, concatenate
-from tensorflow.keras.layers import UpSampling2D, Conv2D
+from tensorflow.keras.layers import UpSampling2D, Conv2D, Conv2DTranspose
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 
@@ -71,13 +71,13 @@ class ACGAN():
         losses = ['binary_crossentropy', 'binary_crossentropy']
 
         # Build and compile the discriminator
-        self.discriminator = self.build_discriminator()
+        self.discriminator = self.build_discriminator_1()
         self.discriminator.compile(loss=losses,
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
 
         # Build the generator
-        self.generator = self.build_generator()
+        self.generator = self.build_generator_1()
 
         # The generator takes noise and the target label as input
         # and generates the corresponding digit of that label
@@ -97,6 +97,74 @@ class ACGAN():
         self.combined = Model([noise, label], [valid, target_label])
         self.combined.compile(loss=losses,
                               optimizer=optimizer)
+
+    def build_generator_1(self):
+
+        model = Sequential(name='generator_body')
+
+        size = self.img_rows // 4
+        model.add(Dense(128 * size * size, activation="relu", input_dim=self.latent_dim + self.num_classes))
+        model.add(Reshape((size, size, 128)))
+
+        model.add(BatchNormalization())
+        model.add(Conv2DTranspose(filters=128, strides=2, kernel_size=5, padding="same", activation='relu'))
+
+        model.add(BatchNormalization())
+        model.add(Conv2DTranspose(filters=64, strides=2, kernel_size=5, padding="same", activation='relu'))
+
+        model.add(BatchNormalization())
+        model.add(Conv2DTranspose(filters=32, strides=1, kernel_size=5, padding="same", activation='relu'))
+
+        model.add(BatchNormalization())
+        model.add(Conv2DTranspose(filters=3, strides=1, kernel_size=5, padding="same", activation='relu'))
+
+        model.add(Activation("sigmoid"))
+
+        model.summary()
+
+        noise = Input(shape=(self.latent_dim,))
+        label = Input(shape=(self.num_classes,))
+
+        model_input = concatenate([noise, label], axis=1)
+        img = model(model_input)
+
+        return Model([noise, label], img, name='generator')
+
+    def build_discriminator_1(self):
+
+        model = Sequential(name='discriminator_body')
+
+        model.add(LeakyReLU(alpha=0.2, input_shape=self.img_shape))
+        model.add(Conv2D(filters=32, kernel_size=5, strides=2, padding="same"))
+
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(filters=64, kernel_size=5, strides=2, padding="same"))
+
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(filters=128, kernel_size=5, strides=2, padding="same"))
+
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(filters=256, kernel_size=5, strides=1, padding="same"))
+
+        model.add(Flatten())
+        model.summary()
+
+        img = Input(shape=self.img_shape)
+
+        # Extract feature representation
+        features = model(img)
+
+        # Determine validity and label of the image
+        validity = Dense(1)(features)
+        validity = Activation('sigmoid')(validity)
+        # label = Dense(self.num_classes, activation="softmax")(features)
+        layer = Dense(128)(features)
+
+        label = Dense(self.num_classes)(layer)
+
+        label = Activation("sigmoid", name='label')(label)
+
+        return Model(img, [validity, label], name='discriminator')
 
     def build_generator(self):
 
@@ -160,7 +228,7 @@ class ACGAN():
         # label = Dense(self.num_classes, activation="softmax")(features)
         label = Dense(self.num_classes, activation="sigmoid")(features)
 
-        return Model(img, [validity, label])
+        return Model(img, [validity, label], name='discriminator')
 
     def train(self, epochs, batch_size=128, sample_interval=50):
 
