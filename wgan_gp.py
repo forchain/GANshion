@@ -32,9 +32,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 tf.compat.v1.disable_eager_execution()
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
-assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
+if len(physical_devices) > 0:
+    config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 BATCH_SIZE = 100
 Z_DIM = 100
@@ -84,7 +83,9 @@ class WGANGP():
 
         # Build the generator and critic
         self.generator = self.build_generator()
+        self.generator.summary()
         self.critic = self.build_critic()
+        self.critic.summary()
 
         # -------------------------------
         # Construct Computational Graph
@@ -119,7 +120,8 @@ class WGANGP():
         partial_gp_loss.__name__ = 'gradient_penalty'  # Keras requires function names
 
         self.critic_model = Model(inputs=[real_img, z_disc, label],
-                                  outputs=[valid, fake, validity_interpolated, valid_label, fake_label])
+                                  outputs=[valid, fake, validity_interpolated, valid_label, fake_label],
+                                  name='critic_model')
         self.critic_model.compile(loss=[
             self.wasserstein_loss,
             self.wasserstein_loss,
@@ -129,6 +131,9 @@ class WGANGP():
         ],
             optimizer=optimizer,
             loss_weights=[1, 1, 10, 2, 2])
+
+        self.critic_model.summary()
+
         # -------------------------------
         # Construct Computational Graph
         #         for Generator
@@ -146,9 +151,10 @@ class WGANGP():
         # Discriminator determines validity
         valid, valid_label = self.critic(img)
         # Defines generator model
-        self.generator_model = Model([z_gen, label_zen], [valid, valid_label])
+        self.generator_model = Model([z_gen, label_zen], [valid, valid_label], name='generator_model')
         self.generator_model.compile(loss=[self.wasserstein_loss, tf.keras.losses.MeanSquaredError()],
                                      optimizer=optimizer)
+        self.generator_model.summary()
 
     def gradient_penalty_loss(self, y_true, y_pred, averaged_samples):
         """
@@ -176,7 +182,7 @@ class WGANGP():
         d = 4
         momentum = 0.9
 
-        model = Sequential()
+        model = Sequential(name='generator_body')
 
         model.add(Dense(d * d * 512, input_dim=self.latent_dim + self.num_classes))
         model.add(Reshape([d, d, 512]))
@@ -201,10 +207,10 @@ class WGANGP():
         model_input = concatenate([noise, label])
         img = model(model_input)
 
-        return Model([noise, label], img)
+        return Model([noise, label], img, name='generator')
 
     def build_critic(self):
-        model = Sequential()
+        model = Sequential(name='critic_body')
 
         model.add(Conv2D(filters=64, kernel_size=5, strides=2, input_shape=self.img_shape, padding="same"))
         model.add(LeakyReLU())
@@ -228,7 +234,7 @@ class WGANGP():
         validity = Dense(1, activation="sigmoid")(features)
         label = Dense(self.num_classes)(features)
 
-        return Model(img, [validity, label])
+        return Model(img, [validity, label], name='critic')
 
     def train(self, epochs, sample_interval=50):
         batch_size = self.batch_size

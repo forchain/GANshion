@@ -68,7 +68,7 @@ def build_generator_1(inputs, labels, image_size):
     model_input = concatenate([inputs, labels], axis=1)
     img = model(model_input)
 
-    return Model([inputs, labels], img)
+    return Model([inputs, labels], img, name='generator')
 
 
 def build_generator(inputs, labels, image_size):
@@ -139,7 +139,7 @@ def build_discriminator_1(inputs, labels, image_size):
 
     validity = model(model_input)
 
-    return Model([inputs, labels], validity)
+    return Model([inputs, labels], validity, name='discriminator')
 
 def build_discriminator(inputs, labels, image_size):
     """Build a Discriminator Model
