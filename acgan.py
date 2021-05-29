@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply
 from tensorflow.keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2D
-from tensorflow.keras.layers import LeakyReLU, concatenate
+from tensorflow.keras.layers import ReLU, LeakyReLU, concatenate
 from tensorflow.keras.layers import UpSampling2D, Conv2D, Conv2DTranspose
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
@@ -71,13 +71,13 @@ class ACGAN():
         losses = ['binary_crossentropy', 'binary_crossentropy']
 
         # Build and compile the discriminator
-        self.discriminator = self.build_discriminator_1()
+        self.discriminator = self.build_discriminator_2()
         self.discriminator.compile(loss=losses,
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
 
         # Build the generator
-        self.generator = self.build_generator_1()
+        self.generator = self.build_generator_2()
 
         # The generator takes noise and the target label as input
         # and generates the corresponding digit of that label
@@ -130,6 +130,40 @@ class ACGAN():
 
         return Model([noise, label], img, name='generator')
 
+    def build_generator_2(self):
+
+        model = Sequential(name='generator_body')
+
+        size = self.img_rows // 4
+        model.add(Dense(512 * size * size, activation="relu", input_dim=self.latent_dim + self.num_classes))
+        model.add(Reshape((size, size, 512)))
+
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(filters=256, strides=2, kernel_size=5, padding="same"))
+
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(filters=128, strides=2, kernel_size=5, padding="same"))
+
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(filters=64, strides=2, kernel_size=5, padding="same"))
+
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(filters=3, strides=2, kernel_size=5, padding="same", activation='tanh'))
+
+        model.summary()
+
+        noise = Input(shape=(self.latent_dim,))
+        label = Input(shape=(self.num_classes,))
+
+        model_input = concatenate([noise, label], axis=1)
+        img = model(model_input)
+
+        return Model([noise, label], img, name='generator')
+
     def build_discriminator_1(self):
 
         model = Sequential(name='discriminator_body')
@@ -163,6 +197,39 @@ class ACGAN():
         label = Dense(self.num_classes)(layer)
 
         label = Activation("sigmoid", name='label')(label)
+
+        return Model(img, [validity, label], name='discriminator')
+
+    def build_discriminator_2(self):
+
+        model = Sequential(name='discriminator_body')
+
+        model.add(Conv2D(filters=64, kernel_size=5, strides=2, padding="same"))
+        model.add(LeakyReLU(alpha=0.2, input_shape=self.img_shape))
+
+        model.add(Conv2D(filters=128, kernel_size=5, strides=2, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+
+        model.add(Conv2D(filters=256, kernel_size=5, strides=2, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+
+        model.add(Conv2D(filters=512, kernel_size=5, strides=1, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+
+        model.add(Flatten())
+        model.summary()
+
+        img = Input(shape=self.img_shape)
+
+        # Extract feature representation
+        features = model(img)
+
+        # Determine validity and label of the image
+        validity = Dense(1)(features)
+        # label = Dense(self.num_classes, activation="softmax")(features)
+
+        label = Dense(self.num_classes)(features)
+
 
         return Model(img, [validity, label], name='discriminator')
 
