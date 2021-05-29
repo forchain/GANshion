@@ -1,7 +1,6 @@
 from __future__ import print_function, division
 
 import tensorflow as tf
-from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply
 from tensorflow.keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2D
 from tensorflow.keras.layers import ReLU, LeakyReLU, concatenate
@@ -15,7 +14,7 @@ import numpy as np
 import pandas as pd
 import glob
 import os
-from imageio import imread, imsave, mimsave
+from imageio import imread
 import cv2
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
