@@ -75,9 +75,11 @@ class ACGAN():
         self.discriminator.compile(loss=losses,
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
+        self.discriminator.summary()
 
         # Build the generator
         self.generator = self.build_generator_2()
+        self.generator.summary()
 
         # The generator takes noise and the target label as input
         # and generates the corresponding digit of that label
@@ -148,11 +150,13 @@ class ACGAN():
 
         model.add(BatchNormalization(momentum=0.9))
         model.add(ReLU())
-        model.add(Conv2DTranspose(filters=64, strides=2, kernel_size=5, padding="same"))
+        model.add(Conv2DTranspose(filters=64, strides=1, kernel_size=5, padding="same"))
 
         model.add(BatchNormalization(momentum=0.9))
         model.add(ReLU())
-        model.add(Conv2DTranspose(filters=3, strides=2, kernel_size=5, padding="same", activation='tanh'))
+        model.add(Conv2DTranspose(filters=3, strides=1, kernel_size=5, padding="same"))
+
+        model.add(Activation('tanh'))
 
         model.summary()
 
