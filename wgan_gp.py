@@ -265,11 +265,13 @@ class WGANGP():
                 # Sample generator input
                 noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
-                sampled_labels = self.get_random_tags()
+                # sampled_labels = self.get_random_tags()
+                sampled_labels = img_labels
+                fake_labels = np.zeros(img_labels.shape)
 
                 # Train the critic
                 d_loss = self.critic_model.train_on_batch([imgs, noise, sampled_labels],
-                                                          [valid, fake, dummy, img_labels, sampled_labels])
+                                                          [valid, fake, dummy, sampled_labels, fake_labels])
 
             # ---------------------
             #  Train Generator
