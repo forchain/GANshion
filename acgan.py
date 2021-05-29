@@ -204,8 +204,8 @@ class ACGAN():
 
         model = Sequential(name='discriminator_body')
 
-        model.add(Conv2D(filters=64, kernel_size=5, strides=2, padding="same"))
-        model.add(LeakyReLU(alpha=0.2, input_shape=self.img_shape))
+        model.add(Conv2D(filters=64, kernel_size=5, strides=2, padding="same", input_shape=self.img_shape))
+        model.add(LeakyReLU(alpha=0.2))
 
         model.add(Conv2D(filters=128, kernel_size=5, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
