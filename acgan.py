@@ -157,8 +157,8 @@ class ACGAN():
 
         # Determine validity and label of the image
         validity = Dense(1, activation="sigmoid")(features)
-        label = Dense(self.num_classes, activation="softmax")(features)
-        # label = Dense(self.num_classes, activation="sigmoid")(features)
+        # label = Dense(self.num_classes, activation="softmax")(features)
+        label = Dense(self.num_classes, activation="sigmoid")(features)
 
         return Model(img, [validity, label])
 
