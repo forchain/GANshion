@@ -6,10 +6,10 @@ from __future__ import print_function, division
 
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
-from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import LeakyReLU, ReLU
 from tensorflow.keras.layers import UpSampling2D, Conv2D
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.optimizers import RMSprop, Adam
 from functools import partial
 
 import tensorflow.keras.backend as K
@@ -80,8 +80,9 @@ class WGANGP():
         self.num_classes = num_classes
 
         # Following parameter and optimizer set as recommended in paper
-        self.n_critic = 5
-        optimizer = RMSprop(lr=0.00005)
+        self.n_critic = 3
+        # optimizer = RMSprop(lr=0.00005)
+        optimizer = Adam(learning_rate=0.00002, beta_1=0.5)
 
         # Build the generator and critic
         self.generator = self.build_generator()
@@ -190,15 +191,19 @@ class WGANGP():
         model.add(Reshape([d, d, 512]))
 
         model.add(BatchNormalization(momentum=momentum))
-        model.add(Conv2DTranspose(kernel_size=5, filters=256, strides=2, padding='same', activation='relu'))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(kernel_size=5, filters=256, strides=2, padding='same'))
 
         model.add(BatchNormalization(momentum=momentum))
-        model.add(Conv2DTranspose(kernel_size=5, filters=128, strides=2, padding='same', activation='relu'))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(kernel_size=5, filters=128, strides=2, padding='same'))
 
         model.add(BatchNormalization(momentum=momentum))
-        model.add(Conv2DTranspose(kernel_size=5, filters=64, strides=2, padding='same', activation='relu'))
+        model.add(ReLU())
+        model.add(Conv2DTranspose(kernel_size=5, filters=64, strides=2, padding='same'))
 
         model.add(BatchNormalization(momentum=momentum))
+        model.add(ReLU())
         model.add(Conv2DTranspose(kernel_size=5, filters=3, strides=2, padding='same', activation='tanh'))
 
         model.summary()
