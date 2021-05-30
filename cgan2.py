@@ -293,7 +293,7 @@ HEIGHT = 64
 LABEL = 35
 SAMPLE_NUM = 999  # 5
 OUTPUT_DIR = 'samples'
-EPOCHS = 40000
+EPOCHS = 10000
 CHANNELS = 3
 
 
@@ -325,7 +325,7 @@ def build_and_train_models():
     image_size = WIDTH
     # y_train = to_categorical(y_train)
 
-    model_name = "cgan_fashion"
+    model_name = "cgan_2"
     # network parameters
     # the latent or z vector is 100-dim
     latent_size = Z_DIM
