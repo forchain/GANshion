@@ -16,21 +16,34 @@ import glob
 import os
 from imageio import imread
 import cv2
+from tensorflow.keras import backend as K
+from tensorflow.keras import metrics
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
 BATCH_SIZE = 64
 Z_DIM = 100
 WIDTH = 64
 HEIGHT = 64
 LABEL = 35
 SAMPLE_NUM = 999  # 5
-OUTPUT_DIR = 'acgan_samples'
+OUTPUT_DIR = 'acgan'
 EPOCHS = 14000
 CHANNELS = 3
+
+
+def F1_Score(y_true, y_pred):  # taken from old keras source code
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    recall = true_positives / (possible_positives + K.epsilon())
+    f1_val = 2 * (precision * recall) / (precision + recall + K.epsilon())
+    return f1_val
 
 
 def get_random_tags(batch_size, num_classes):
@@ -73,7 +86,12 @@ class ACGAN():
         self.discriminator = self.build_discriminator_3()
         self.discriminator.compile(loss=losses,
                                    optimizer=optimizer,
-                                   metrics=['accuracy'])
+                                   metrics=['accuracy',
+                                            metrics.AUC(name='auc'),
+                                            metrics.Precision(name='precision'),
+                                            metrics.Recall(name='recall'),
+                                            F1_Score
+                                            ])
         self.discriminator.summary()
 
         # Build the generator
@@ -97,7 +115,13 @@ class ACGAN():
         # Trains the generator to fool the discriminator
         self.combined = Model([noise, label], [valid, target_label])
         self.combined.compile(loss=losses,
-                              optimizer=optimizer)
+                              optimizer=optimizer,
+                              metrics=['accuracy',
+                                       metrics.AUC(name='auc'),
+                                       metrics.Precision(name='precision'),
+                                       metrics.Recall(name='recall'),
+                                       F1_Score
+                                       ])
 
     def build_generator_1(self):
 
@@ -382,6 +406,13 @@ class ACGAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
+        # create tensorboard graph data for the model
+        tb = tf.keras.callbacks.TensorBoard(log_dir='Logs/acgan',
+                                            histogram_freq=0,
+                                            batch_size=batch_size,
+                                            write_graph=True,
+                                            write_grads=False)
+
         for epoch in range(epochs):
 
             # ---------------------
@@ -419,6 +450,8 @@ class ACGAN():
             d_loss_real = self.discriminator.train_on_batch(imgs, [valid, img_labels])
             d_loss_fake = self.discriminator.train_on_batch(gen_imgs, [fake, sampled_labels])
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+            tb.set_model(self.discriminator)
+            tb.on_epoch_end(epoch, {'d_loss': d_loss[0], 'd_acc': d_loss[3]})
 
             # ---------------------
             #  Train Generator
@@ -426,10 +459,12 @@ class ACGAN():
 
             # Train the generator
             g_loss = self.combined.train_on_batch([noise, sampled_labels], [valid, sampled_labels])
+            tb.set_model(self.combined)
+            tb.on_epoch_end(epoch, {'g_loss': g_loss[0], 'g_acc': g_loss[3]})
 
             # Plot the progress
-            print("%d [D loss: %f, acc.: %.2f%%, op_acc: %.2f%%] [G loss: %f]" % (
-                epoch, d_loss[0], 100 * d_loss[3], 100 * d_loss[4], g_loss[0]))
+            print("%d [D loss: %f, acc.: %.2f%%, op_acc: %.2f%%] [G loss: %f, acc.: %.2f%%]" % (
+                epoch, d_loss[0], 100 * d_loss[3], 100 * d_loss[4], g_loss[0], 100 * g_loss[3]))
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
@@ -451,7 +486,7 @@ class ACGAN():
                 axs[i, j].imshow(gen_imgs[cnt, :, :, 0])
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("images/%d.png" % epoch)
+        fig.savefig(OUTPUT_DIR + "/%d.png" % epoch)
         plt.close()
 
     def save_model(self):
