@@ -19,6 +19,9 @@ if len(physical_devices) > 0:
 # %%
 
 images = glob.glob('dresses/*.jpg')
+if len(physical_devices) == 0:
+    images = images[:1000]
+
 print(len(images))
 
 # %%
@@ -37,7 +40,7 @@ LABEL = 35
 LAMBDA = 10
 DIS_ITERS = 3  # 5
 
-OUTPUT_DIR = 'samples'
+OUTPUT_DIR = 'wgan_gp-acgan'
 if not os.path.exists(OUTPUT_DIR):
     os.mkdir(OUTPUT_DIR)
 
@@ -248,14 +251,14 @@ if __name__ == '__main__':
     plt.plot(loss['d'], label='Discriminator')
     plt.plot(loss['g'], label='Generator')
     plt.legend(loc='upper right')
-    plt.savefig('Loss.png')
+    plt.savefig(OUTPUT_DIR + '/Loss.png')
     plt.show()
     mimsave(os.path.join(OUTPUT_DIR, 'fashion.gif'), samples, fps=10)
 
     # %%
 
     saver = tf.train.Saver()
-    saver.save(sess, './fashion_acgan', global_step=60000)
+    saver.save(sess, OUTPUT_DIR + '/model', global_step=60000)
 
     # %%
 
