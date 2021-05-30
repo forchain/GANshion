@@ -292,6 +292,7 @@ def train(models, data, params):
         # train discriminator network, log the loss and accuracy
         loss, acc = discriminator.train_on_batch([x, labels], y)
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
+        tb.set_model(discriminator)
         tb.on_epoch_end(i, {'d_loss': loss, 'd_acc': acc})
 
         # train the adversarial network for 1 batch
@@ -316,6 +317,7 @@ def train(models, data, params):
         # log the loss and accuracy
         loss, acc = adversarial.train_on_batch([noise, fake_labels], y)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
+        tb.set_model(adversarial)
         tb.on_epoch_end(i, {'g_loss': loss, 'g_acc': acc})
         print(log)
         if (i + 1) % save_interval == 0:
