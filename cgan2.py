@@ -48,7 +48,7 @@ physical_devices = tf.config.experimental.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def build_generator_1(inputs, labels, image_size):
+def build_generator(inputs, labels, image_size):
     model = Sequential(name='generator_body')
 
     model.add(Dense(256, input_dim=Z_DIM+LABEL))
@@ -71,52 +71,7 @@ def build_generator_1(inputs, labels, image_size):
     return Model([inputs, labels], img, name='generator')
 
 
-def build_generator(inputs, labels, image_size):
-    """Build a Generator Model
-
-    Inputs are concatenated before Dense layer.
-    Stack of BN-ReLU-Conv2DTranpose to generate fake images.
-    Output activation is sigmoid instead of tanh in orig DCGAN.
-    Sigmoid converges easily.
-
-    Arguments:
-        inputs (Layer): Input layer of the generator (the z-vector)
-        labels (Layer): Input layer for one-hot vector to condition
-            the inputs
-        image_size: Target size of one side (assuming square image)
-
-    Returns:
-        generator (Model): Generator Model
-    """
-    image_resize = image_size // 4
-    # network parameters
-    kernel_size = 5
-    layer_filters = [128, 64, 32, CHANNELS]
-
-    x = concatenate([inputs, labels], axis=1)
-    x = Dense(image_resize * image_resize * layer_filters[0])(x)
-    x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
-
-    for filters in layer_filters:
-        # first two convolution layers use strides = 2
-        # the last two use strides = 1
-        if filters > layer_filters[-2]:
-            strides = 2
-        else:
-            strides = 1
-        x = BatchNormalization()(x)
-        x = Activation('relu')(x)
-        x = Conv2DTranspose(filters=filters,
-                            kernel_size=kernel_size,
-                            strides=strides,
-                            padding='same')(x)
-
-    x = Activation('sigmoid')(x)
-    # input is conditioned by labels
-    generator = Model([inputs, labels], x, name='generator')
-    return generator
-
-def build_discriminator_1(inputs, labels, image_size):
+def build_discriminator(inputs, labels, image_size):
 
     model = Sequential(name='discriminator_body')
 
@@ -141,51 +96,6 @@ def build_discriminator_1(inputs, labels, image_size):
 
     return Model([inputs, labels], validity, name='discriminator')
 
-def build_discriminator(inputs, labels, image_size):
-    """Build a Discriminator Model
-
-    Inputs are concatenated after Dense layer.
-    Stack of LeakyReLU-Conv2D to discriminate real from fake.
-    The network does not converge with BN so it is not used here
-    unlike in DCGAN paper.
-
-    Arguments:
-        inputs (Layer): Input layer of the discriminator (the image)
-        labels (Layer): Input layer for one-hot vector to condition
-            the inputs
-        image_size: Target size of one side (assuming square image)
-
-    Returns:
-        discriminator (Model): Discriminator Model
-    """
-    kernel_size = 5
-    layer_filters = [32, 64, 128, 256]
-
-    x = inputs
-
-    y = Dense(image_size * image_size * CHANNELS)(labels)
-    y = Reshape((image_size, image_size, CHANNELS))(y)
-    x = concatenate([x, y])
-
-    for filters in layer_filters:
-        # first 3 convolution layers use strides = 2
-        # last one uses strides = 1
-        if filters == layer_filters[-1]:
-            strides = 1
-        else:
-            strides = 2
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(filters=filters,
-                   kernel_size=kernel_size,
-                   strides=strides,
-                   padding='same')(x)
-
-    x = Flatten()(x)
-    x = Dense(1)(x)
-    x = Activation('sigmoid')(x)
-    # input is conditioned by labels
-    discriminator = Model([inputs, labels], x, name='discriminator')
-    return discriminator
 
 def get_random_tags(batch_size, num_classes):
     y = np.random.uniform(0.0, 1.0, [batch_size, num_classes]).astype(np.float32)
@@ -246,7 +156,7 @@ def train(models, data, params):
           np.argmax(noise_class, axis=1))
 
     # create tensorboard graph data for the model
-    tb = tf.keras.callbacks.TensorBoard(log_dir='Logs/cgan',
+    tb = tf.keras.callbacks.TensorBoard(log_dir='Logs/cgan2',
                                         histogram_freq=0,
                                         batch_size=batch_size,
                                         write_graph=True,
@@ -431,7 +341,7 @@ def build_and_train_models():
     labels = Input(shape=label_shape, name='class_labels')
 
     # discriminator = build_discriminator(inputs, labels, image_size)
-    discriminator = build_discriminator_1(inputs, labels, image_size)
+    discriminator = build_discriminator(inputs, labels, image_size)
     # [1] or original paper uses Adam,
     # but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
@@ -444,7 +354,7 @@ def build_and_train_models():
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
     # generator = build_generator(inputs, labels, image_size)
-    generator = build_generator_1(inputs, labels, image_size)
+    generator = build_generator(inputs, labels, image_size)
     generator.summary()
 
     # build adversarial model = generator + discriminator
