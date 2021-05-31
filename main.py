@@ -493,10 +493,10 @@ class GANMonitor(keras.callbacks.Callback):
 # Instantiate the optimizer for both networks
 # (learning_rate=0.0002, beta_1=0.5 are recommended)
 generator_optimizer = keras.optimizers.Adam(
-    learning_rate=0.0002, beta_1=0.5, beta_2=0.9
+    learning_rate=0.002, beta_1=0.5, beta_2=0.9
 )
 discriminator_optimizer = keras.optimizers.Adam(
-    learning_rate=0.0002, beta_1=0.5, beta_2=0.9
+    learning_rate=0.002, beta_1=0.5, beta_2=0.9
 )
 
 
@@ -536,30 +536,11 @@ wgan.compile(
     d_loss_fn=discriminator_loss,
 )
 
-
-# static
-def lr_schedule(epoch):
-    lr = 1e-4
-
-    # dynamic optimization, abandoned due to bad performance
-    # if epoch > 10:
-    #     lr = 1e-5
-
-    return lr
-
-
-lr_scheduler = callbacks.LearningRateScheduler(lr_schedule)
-
-lr_reducer = callbacks.ReduceLROnPlateau(factor=np.sqrt(0.1),
-                                         cooldown=0,
-                                         patience=5,
-                                         min_lr=1e-6)
-
 # Start training
 
 # train_data = (train_images, train_labels)
 wgan.fit(train_images, train_labels, batch_size=BATCH_SIZE, epochs=epochs
-         , callbacks=[cbk, lr_reducer, lr_scheduler])
+         , callbacks=[cbk])
 
 """
 Display the last generated images:
