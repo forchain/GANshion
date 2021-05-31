@@ -55,6 +55,9 @@ TRAIN_RATIO = 0.7
 # Size of the noise vector
 noise_dim = 128
 
+# Size of the customized vector
+num_classes = 35
+
 images = glob.glob('dresses/*.jpg')
 if len(images) == 0:
     print('cannot find dresses')
@@ -92,10 +95,10 @@ print(X_all.shape, Y_all.shape)
 
 train_num = int(len(X_all)*TRAIN_RATIO)
 train_images = np.array(X_all[:train_num])
-train_labels = np.array(X_all[:train_num])
+train_labels = np.array(Y_all[:train_num])
 
 test_images = np.array(X_all[train_num:])
-test_labels = np.array(X_all[train_num:])
+test_labels = np.array(Y_all[train_num:])
 print(f"Number of examples: {len(train_images)}")
 print(f"Shape of the images in the dataset: {train_images.shape[1:]}")
 
@@ -189,9 +192,11 @@ def get_discriminator_model():
 
     x = layers.Flatten()(x)
     x = layers.Dropout(0.2)(x)
-    x = layers.Dense(1)(x)
 
-    d_model = keras.models.Model(img_input, x, name="discriminator")
+    validity = layers.Dense(1)(x)
+    label = layers.Dense(num_classes)(x)
+
+    d_model = keras.models.Model(img_input, [validity, label], name="discriminator")
     return d_model
 
 
@@ -233,7 +238,11 @@ def upsample_block(
 
 def get_generator_model():
     noise = layers.Input(shape=(noise_dim,))
-    x = layers.Dense(8 * 8 * 256, use_bias=False)(noise)
+    label = layers.Input(shape=(num_classes,))
+
+    model_input = layers.concatenate([noise, label])
+
+    x = layers.Dense(8 * 8 * 256, use_bias=False)(model_input)
     x = layers.BatchNormalization()(x)
     x = layers.LeakyReLU(0.2)(x)
 
@@ -262,13 +271,36 @@ def get_generator_model():
         x, 3, layers.Activation("tanh"), strides=(1, 1), use_bias=False, use_bn=True
     )
 
-    g_model = keras.models.Model(noise, x, name="generator")
+    g_model = keras.models.Model([noise, label], x, name="generator")
     return g_model
 
 
 g_model = get_generator_model()
 g_model.summary()
 
+def get_random_tags(batch_size, num_classes):
+    y = np.zeros((1, num_classes))
+
+    color = np.random.randint(0, 9)
+    length = np.random.randint(9, 14)
+    patten = np.random.randint(14, 20)
+    neckline = np.random.randint(20, 26)
+    sleeve = np.random.randint(26, 30)
+    fit = np.random.randint(30, 33)
+    occasion = np.random.randint(33, 35)
+
+    y[0, color] = 1
+    y[0, length] = 1
+    y[0, patten] = 1
+    y[0, neckline] = 1
+    y[0, sleeve] = 1
+    y[0, fit] = 1
+    y[0, occasion] = 1
+
+    y = tf.convert_to_tensor(y, np.int64)
+    y = tf.repeat(y, batch_size, axis=0)
+
+    return y
 """
 ## Create the WGAN-GP model
 
@@ -323,12 +355,16 @@ class WGAN(keras.Model):
         gp = tf.reduce_mean((norm - 1.0) ** 2)
         return gp
 
-    def train_step(self, real_images):
-        if isinstance(real_images, tuple):
-            real_images = real_images[0]
+    def train_step(self, real_data):
+        # if isinstance(real_data, tuple):
+        #     real_images = real_data[0]
+        #     real_train_labels = real_data[1]
+
+        real_images, real_train_labels = real_data
 
         # Get the batch size
         batch_size = tf.shape(real_images)[0]
+        # batch_size = BATCH_SIZE
 
         # For each batch, we are going to perform the
         # following steps as laid out in the original paper:
@@ -348,16 +384,22 @@ class WGAN(keras.Model):
             random_latent_vectors = tf.random.normal(
                 shape=(batch_size, self.latent_dim)
             )
+            random_label_vectors = get_random_tags(batch_size, num_classes)
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
-                fake_images = self.generator(random_latent_vectors, training=True)
+                fake_images = self.generator([random_latent_vectors, random_label_vectors], training=True)
                 # Get the logits for the fake images
-                fake_logits = self.discriminator(fake_images, training=True)
+                fake_logits, fake_labels = self.discriminator(fake_images, training=True)
                 # Get the logits for the real images
-                real_logits = self.discriminator(real_images, training=True)
+                real_logits, real_predict_labels = self.discriminator(real_images, training=True)
 
                 # Calculate the discriminator loss using the fake and real image logits
                 d_cost = self.d_loss_fn(real_img=real_logits, fake_img=fake_logits)
+
+                loss_cls_real = tf.losses.mean_squared_error(real_train_labels, real_predict_labels)
+
+                d_cost += loss_cls_real
+
                 # Calculate the gradient penalty
                 gp = self.gradient_penalty(batch_size, real_images, fake_images)
                 # Add the gradient penalty to the original discriminator loss
@@ -373,13 +415,17 @@ class WGAN(keras.Model):
         # Train the generator
         # Get the latent vector
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
+        random_label_vectors = get_random_tags(batch_size, num_classes)
         with tf.GradientTape() as tape:
             # Generate fake images using the generator
-            generated_images = self.generator(random_latent_vectors, training=True)
+            generated_images = self.generator([random_latent_vectors, random_label_vectors], training=True)
             # Get the discriminator logits for fake images
-            gen_img_logits = self.discriminator(generated_images, training=True)
+            gen_img_logits, gen_img_labels = self.discriminator(generated_images, training=True)
             # Calculate the generator loss
             g_loss = self.g_loss_fn(gen_img_logits)
+
+            loss_cls_fake = tf.losses.mean_squared_error(random_label_vectors, gen_img_labels)
+            g_loss += loss_cls_fake
 
         # Get the gradients w.r.t the generator loss
         gen_gradient = tape.gradient(g_loss, self.generator.trainable_variables)
@@ -402,7 +448,8 @@ class GANMonitor(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         random_latent_vectors = tf.random.normal(shape=(self.num_img, self.latent_dim))
-        generated_images = self.model.generator(random_latent_vectors)
+        random_label_vectors = tf.random.uniform(shape=(self.num_img, num_classes))
+        generated_images = self.model.generator([random_latent_vectors, random_label_vectors])
         generated_images = (generated_images * 127.5) + 127.5
 
         for i in range(self.num_img):
@@ -462,7 +509,9 @@ wgan.compile(
 )
 
 # Start training
-wgan.fit(train_images, batch_size=BATCH_SIZE, epochs=epochs, callbacks=[cbk])
+
+# train_data = (train_images, train_labels)
+wgan.fit(train_images, train_labels, batch_size=BATCH_SIZE, epochs=epochs, callbacks=[cbk])
 
 """
 Display the last generated images:
