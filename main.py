@@ -93,15 +93,24 @@ X_all = np.array(X_all)
 Y_all = np.array(Y_all)
 print(X_all.shape, Y_all.shape)
 
-train_num = int(len(X_all)*TRAIN_RATIO)
+X_all = np.zeros(15348)
+# WORKAROUND: operands could not be broadcast together with shapes
+train_num = int(len(X_all) * TRAIN_RATIO)
+if train_num > BATCH_SIZE:
+    train_num = BATCH_SIZE * (train_num // BATCH_SIZE)
+
 train_images = np.array(X_all[:train_num])
 train_labels = np.array(Y_all[:train_num])
 
-test_images = np.array(X_all[train_num:])
-test_labels = np.array(Y_all[train_num:])
+test_num = len(X_all) - train_num
+if test_num > BATCH_SIZE:
+    test_num = BATCH_SIZE * (test_num // BATCH_SIZE)
+
+test_images = np.array(X_all[train_num:train_num + test_num])
+test_labels = np.array(Y_all[train_num:train_num + test_num])
+
 print(f"Number of examples: {len(train_images)}")
 print(f"Shape of the images in the dataset: {train_images.shape[1:]}")
-
 
 """
 ## Create the discriminator (the critic in the original WGAN)
@@ -278,6 +287,7 @@ def get_generator_model():
 g_model = get_generator_model()
 g_model.summary()
 
+
 def get_random_tags(batch_size, num_classes):
     y = np.zeros((1, num_classes))
 
@@ -301,6 +311,8 @@ def get_random_tags(batch_size, num_classes):
     y = tf.repeat(y, batch_size, axis=0)
 
     return y
+
+
 """
 ## Create the WGAN-GP model
 
