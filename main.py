@@ -393,10 +393,9 @@ class WGAN(keras.Model):
             random_latent_vectors = tf.random.normal(
                 shape=(batch_size, self.latent_dim)
             )
-            random_label_vectors = get_random_tags(batch_size, num_classes)
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
-                fake_images = self.generator([random_latent_vectors, random_label_vectors], training=True)
+                fake_images = self.generator([random_latent_vectors, real_train_labels], training=True)
                 # Get the logits for the fake images
                 fake_logits, fake_labels = self.discriminator(fake_images, training=True)
                 # Get the logits for the real images
@@ -424,16 +423,15 @@ class WGAN(keras.Model):
         # Train the generator
         # Get the latent vector
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
-        random_label_vectors = get_random_tags(batch_size, num_classes)
         with tf.GradientTape() as tape:
             # Generate fake images using the generator
-            generated_images = self.generator([random_latent_vectors, random_label_vectors], training=True)
+            generated_images = self.generator([random_latent_vectors, real_train_labels], training=True)
             # Get the discriminator logits for fake images
             gen_img_logits, gen_img_labels = self.discriminator(generated_images, training=True)
             # Calculate the generator loss
             g_loss = self.g_loss_fn(gen_img_logits)
 
-            loss_cls_fake = tf.losses.mean_squared_error(random_label_vectors, gen_img_labels)
+            loss_cls_fake = tf.losses.mean_squared_error(real_train_labels, gen_img_labels)
             g_loss += loss_cls_fake
 
         # Get the gradients w.r.t the generator loss
@@ -457,7 +455,7 @@ class GANMonitor(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         random_latent_vectors = tf.random.normal(shape=(self.num_img, self.latent_dim))
-        random_label_vectors = tf.random.uniform(shape=(self.num_img, num_classes))
+        random_label_vectors = get_random_tags(self.num_img, num_classes)
         generated_images = self.model.generator([random_latent_vectors, random_label_vectors])
         generated_images = (generated_images * 127.5) + 127.5
 
