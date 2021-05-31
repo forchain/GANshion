@@ -198,7 +198,7 @@ def train(models, data, params):
           np.argmax(noise_class, axis=1))
 
     # create tensorboard graph data for the model
-    tb = tf.keras.callbacks.TensorBoard(log_dir='Logs/cgan1',
+    tb = tf.keras.callbacks.TensorBoard(log_dir='Logs/cgan_1',
                                         histogram_freq=0,
                                         batch_size=batch_size,
                                         write_graph=True,

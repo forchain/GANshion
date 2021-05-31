@@ -543,12 +543,4 @@ tensorboard = tf.keras.callbacks.TensorBoard(log_dir='logs/ganshion')
 wgan.fit(train_images, train_labels, batch_size=BATCH_SIZE, epochs=epochs
          , callbacks=[cbk, tensorboard])
 
-"""
-Display the last generated images:
-"""
-
-from IPython.display import Image, display
-
-display(Image("generated_img_0_19.png"))
-display(Image("generated_img_1_19.png"))
-display(Image("generated_img_2_19.png"))
+wgan.summary()
