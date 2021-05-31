@@ -12,8 +12,11 @@ import glob
 from tqdm import tqdm
 import pandas as pd
 
-tf.compat.v1.disable_eager_execution()
+from tensorflow.keras.layers import LeakyReLU, Conv2D, Flatten, Dense, Input
+from tensorflow.keras.layers import BatchNormalization, Reshape, Conv2DTranspose, concatenate, ReLU
+from tensorflow.keras.models import Sequential, Model
 
+tf.compat.v1.disable_eager_execution()
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -35,8 +38,8 @@ tags.head()
 
 # %%
 
-batch_size = 100
-z_dim = 100
+BATCH_SIZE = 100
+Z_DIM = 100
 WIDTH = 64
 HEIGHT = 64
 LABEL = 35
@@ -47,65 +50,88 @@ OUTPUT_DIR = 'wgan_gp-acgan'
 if not os.path.exists(OUTPUT_DIR):
     os.mkdir(OUTPUT_DIR)
 
-X = tf.compat.v1.placeholder(dtype=tf.float32, shape=[batch_size, HEIGHT, WIDTH, 3], name='X')
-Y = tf.compat.v1.placeholder(dtype=tf.float32, shape=[batch_size, LABEL], name='Y')
-noise = tf.compat.v1.placeholder(dtype=tf.float32, shape=[batch_size, z_dim], name='noise')
-is_training = tf.compat.v1.placeholder(dtype=tf.bool, name='is_training')
+img_shape = (HEIGHT, WIDTH, 3)
+
+X = Input(shape=img_shape, name='X')
+Y = Input(shape=(LABEL,), name='Y')
+noise = Input(shape=(Z_DIM,), name='noise')
 
 
-def lrelu(x, leak=0.2):
-    return tf.maximum(x, leak * x)
+def build_discriminator():
+    model = Sequential(name='discriminator_body')
+
+    model.add(Conv2D(filters=64, kernel_size=5, strides=2, input_shape=img_shape, padding="same"))
+    model.add(LeakyReLU())
+
+    model.add(Conv2D(filters=128, kernel_size=5, strides=2, padding="same"))
+    model.add(LeakyReLU())
+
+    model.add(Conv2D(filters=256, kernel_size=5, strides=2, padding="same"))
+    model.add(LeakyReLU())
+
+    model.add(Conv2D(filters=512, kernel_size=5, strides=2, padding="same"))
+    model.add(LeakyReLU())
+
+    model.add(Flatten())
+
+    model.summary()
+
+    img = Input(shape=img_shape)
+    features = model(img)
+
+    validity = Dense(1)(features)
+    label = Dense(LABEL)(features)
+
+    return Model(img, [validity, label], name='discriminator')
 
 
 # %%
 
-def discriminator(image, reuse=None, is_training=is_training):
+def build_generator():
+    d = 4
     momentum = 0.9
-    with tf.compat.v1.variable_scope('discriminator', reuse=reuse):
-        h0 = lrelu(tf.compat.v1.layers.conv2d(image, kernel_size=5, filters=64, strides=2, padding='same'))
 
-        h1 = lrelu(tf.compat.v1.layers.conv2d(h0, kernel_size=5, filters=128, strides=2, padding='same'))
+    model = Sequential(name='generator_body')
 
-        h2 = lrelu(tf.compat.v1.layers.conv2d(h1, kernel_size=5, filters=256, strides=2, padding='same'))
+    model.add(Dense(d * d * 512, input_dim=Z_DIM + LABEL))
+    model.add(Reshape([d, d, 512]))
 
-        h3 = lrelu(tf.compat.v1.layers.conv2d(h2, kernel_size=5, filters=512, strides=2, padding='same'))
+    model.add(BatchNormalization(momentum=momentum))
+    model.add(ReLU())
+    model.add(Conv2DTranspose(kernel_size=5, filters=256, strides=2, padding='same'))
 
-        h4 = tf.compat.v1.layers.flatten(h3)
-        Y_ = tf.compat.v1.layers.dense(h4, units=LABEL)
-        h4 = tf.compat.v1.layers.dense(h4, units=1)
-        return h4, Y_
+    model.add(BatchNormalization(momentum=momentum))
+    model.add(ReLU())
+    model.add(Conv2DTranspose(kernel_size=5, filters=128, strides=2, padding='same'))
 
+    model.add(BatchNormalization(momentum=momentum))
+    model.add(ReLU())
+    model.add(Conv2DTranspose(kernel_size=5, filters=64, strides=2, padding='same'))
 
-# %%
+    model.add(BatchNormalization(momentum=momentum))
+    model.add(ReLU())
+    model.add(Conv2DTranspose(kernel_size=5, filters=3, strides=2, padding='same', activation='tanh', name='g'))
 
-def generator(z, label):
-    momentum = 0.9
-    with tf.compat.v1.variable_scope('generator', reuse=None):
-        d = 4
-        z = tf.concat([z, label], axis=1)
-        h0 = tf.compat.v1.layers.dense(z, units=d * d * 512)
-        h0 = tf.reshape(h0, shape=[-1, d, d, 512])
-        h0 = tf.nn.relu(tf.compat.v1.layers.batch_normalization(h0, momentum=momentum))
+    model.summary()
 
-        h1 = tf.compat.v1.layers.conv2d_transpose(h0, kernel_size=5, filters=256, strides=2, padding='same')
-        h1 = tf.nn.relu(tf.compat.v1.layers.batch_normalization(h1, momentum=momentum))
+    noise = Input(shape=(Z_DIM,))
+    label = Input(shape=(LABEL,))
 
-        h2 = tf.compat.v1.layers.conv2d_transpose(h1, kernel_size=5, filters=128, strides=2, padding='same')
-        h2 = tf.nn.relu(tf.compat.v1.layers.batch_normalization(h2, momentum=momentum))
+    model_input = concatenate([noise, label])
+    img = model(model_input)
 
-        h3 = tf.compat.v1.layers.conv2d_transpose(h2, kernel_size=5, filters=64, strides=2, padding='same')
-        h3 = tf.nn.relu(tf.compat.v1.layers.batch_normalization(h3, momentum=momentum))
-
-        h4 = tf.compat.v1.layers.conv2d_transpose(h3, kernel_size=5, filters=3, strides=2, padding='same', activation=tf.nn.tanh,
-                                        name='g')
-        return h4
+    return Model([noise, label], img, name='generator')
 
 
 # %%
 
+
+generator = build_generator()
 g = generator(noise, Y)
+discriminator = build_discriminator()
 d_real, y_real = discriminator(X)
-d_fake, y_fake = discriminator(g, reuse=True)
+d_fake, y_fake = discriminator(g)
+
 
 loss_d_real = -tf.reduce_mean(input_tensor=d_real)
 loss_d_fake = tf.reduce_mean(input_tensor=d_fake)
@@ -116,7 +142,7 @@ loss_cls_fake = tf.compat.v1.losses.mean_squared_error(Y, y_fake)
 loss_d = loss_d_real + loss_d_fake + loss_cls_real
 loss_g = -tf.reduce_mean(input_tensor=d_fake) + loss_cls_fake
 
-alpha = tf.random.uniform(shape=[batch_size, 1, 1, 1], minval=0., maxval=1.)
+alpha = tf.random.uniform(shape=[BATCH_SIZE, 1, 1, 1], minval=0., maxval=1.)
 interpolates = alpha * X + (1 - alpha) * g
 grad = tf.gradients(ys=discriminator(interpolates, reuse=True), xs=[interpolates])[0]
 slop = tf.sqrt(tf.reduce_sum(input_tensor=tf.square(grad), axis=[1]))
@@ -133,6 +159,7 @@ with tf.control_dependencies(update_ops):
     optimizer_d = tf.compat.v1.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(loss_d, var_list=vars_d)
     optimizer_g = tf.compat.v1.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(loss_g, var_list=vars_g)
 
+generator.compile
 
 # %%
 
@@ -197,7 +224,7 @@ print(Y_all[i, :])
 def get_random_batch():
     data_index = np.arange(X_all.shape[0])
     np.random.shuffle(data_index)
-    data_index = data_index[:batch_size]
+    data_index = data_index[:BATCH_SIZE]
     X_batch = X_all[data_index, :, :, :]
     Y_batch = Y_all[data_index, :]
 
@@ -209,28 +236,31 @@ def get_random_batch():
 if __name__ == '__main__':
     sess = tf.compat.v1.Session()
     sess.run(tf.compat.v1.global_variables_initializer())
-    zs = np.random.uniform(-1.0, 1.0, [batch_size // 2, z_dim]).astype(np.float32)
+    zs = np.random.uniform(-1.0, 1.0, [BATCH_SIZE // 2, Z_DIM]).astype(np.float32)
 
-    all_tags = ['color_beige','color_black','color_blue','color_gray','color_green','color_pink','color_red','color_white','color_yellow',
-                'length_3-4','length_knee','length_long','length_normal','length_short',
-                'pattern_floral','pattern_lace','pattern_polkadots','pattern_print','pattern_stripes','pattern_unicolors',
-                'neckline_back','neckline_deep','neckline_lined','neckline_round','neckline_v','neckline_wide',
-                'sleeve_length_half','sleeve_length_long','sleeve_length_short','sleeve_length_sleeveless',
-                'fit_loose','fit_normal','fit_tight',
-                'occasion_casual','occasion_party']
-    tags = ['color_red', 'length_short', 'pattern_unicolors', 'neckline_round', 'sleeve_length_short', 'fit_normal', 'occasion_casual']
+    all_tags = ['color_beige', 'color_black', 'color_blue', 'color_gray', 'color_green', 'color_pink', 'color_red',
+                'color_white', 'color_yellow',
+                'length_3-4', 'length_knee', 'length_long', 'length_normal', 'length_short',
+                'pattern_floral', 'pattern_lace', 'pattern_polkadots', 'pattern_print', 'pattern_stripes',
+                'pattern_unicolors',
+                'neckline_back', 'neckline_deep', 'neckline_lined', 'neckline_round', 'neckline_v', 'neckline_wide',
+                'sleeve_length_half', 'sleeve_length_long', 'sleeve_length_short', 'sleeve_length_sleeveless',
+                'fit_loose', 'fit_normal', 'fit_tight',
+                'occasion_casual', 'occasion_party']
+    tags = ['color_red', 'length_short', 'pattern_unicolors', 'neckline_round', 'sleeve_length_short', 'fit_normal',
+            'occasion_casual']
     y_samples = np.zeros([1, LABEL])
     for tag in tags:
         y_samples[0, all_tags.index(tag)] = 1
-    y_samples = np.repeat(y_samples, batch_size, 0)
+    y_samples = np.repeat(y_samples, BATCH_SIZE, 0)
 
-    z_samples = np.random.uniform(-1.0, 1.0, [batch_size, z_dim]).astype(np.float32)
+    z_samples = np.random.uniform(-1.0, 1.0, [BATCH_SIZE, Z_DIM]).astype(np.float32)
     samples = []
     loss = {'d': [], 'g': []}
 
     for i in tqdm(range(10000)):
         for j in range(DIS_ITERS):
-            n = np.random.uniform(-1.0, 1.0, [batch_size, z_dim]).astype(np.float32)
+            n = np.random.uniform(-1.0, 1.0, [BATCH_SIZE, Z_DIM]).astype(np.float32)
             X_batch, Y_batch = get_random_batch()
             _, d_ls = sess.run([optimizer_d, loss_d], feed_dict={X: X_batch, Y: Y_batch, noise: n, is_training: True})
 
@@ -264,5 +294,3 @@ if __name__ == '__main__':
     saver.save(sess, OUTPUT_DIR + '/model', global_step=60000)
 
     # %%
-
-
