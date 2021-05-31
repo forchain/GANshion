@@ -49,12 +49,12 @@ sample in this dataset is a 28x28 grayscale image associated with a label from
 """
 
 IMG_SHAPE = (64, 64, 3)
-BATCH_SIZE = 100
+BATCH_SIZE = 128
 SAMPLE_NUM = 100
 TRAIN_RATIO = 0.7
 
 # Size of the noise vector
-noise_dim = 100
+noise_dim = 128
 
 # Size of the customized vector
 num_classes = 35
@@ -515,7 +515,7 @@ def generator_loss(fake_img):
 
 
 # Set the number of epochs for trainining.
-epochs = 20
+epochs = 100
 
 # Instantiate the customer `GANMonitor` Keras callback.
 cbk = GANMonitor(num_img=3, latent_dim=noise_dim)
@@ -536,11 +536,12 @@ wgan.compile(
     d_loss_fn=discriminator_loss,
 )
 
+tensorboard = tf.keras.callbacks.TensorBoard(log_dir='logs/ganshion')
 # Start training
 
 # train_data = (train_images, train_labels)
 wgan.fit(train_images, train_labels, batch_size=BATCH_SIZE, epochs=epochs
-         , callbacks=[cbk])
+         , callbacks=[cbk, tensorboard])
 
 """
 Display the last generated images:
