@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.python.keras import callbacks
 import glob
 import pandas as pd
 from tqdm import tqdm
@@ -48,13 +49,11 @@ sample in this dataset is a 28x28 grayscale image associated with a label from
 """
 
 IMG_SHAPE = (64, 64, 3)
-# BATCH_SIZE = 512
 BATCH_SIZE = 100
 SAMPLE_NUM = 100
 TRAIN_RATIO = 0.7
 
 # Size of the noise vector
-# noise_dim = 128
 noise_dim = 100
 
 # Size of the customized vector
@@ -537,10 +536,30 @@ wgan.compile(
     d_loss_fn=discriminator_loss,
 )
 
+
+# static
+def lr_schedule(epoch):
+    lr = 1e-4
+
+    # dynamic optimization, abandoned due to bad performance
+    # if epoch > 10:
+    #     lr = 1e-5
+
+    return lr
+
+
+lr_scheduler = callbacks.LearningRateScheduler(lr_schedule)
+
+lr_reducer = callbacks.ReduceLROnPlateau(factor=np.sqrt(0.1),
+                                         cooldown=0,
+                                         patience=5,
+                                         min_lr=1e-6)
+
 # Start training
 
 # train_data = (train_images, train_labels)
-wgan.fit(train_images, train_labels, batch_size=BATCH_SIZE, epochs=epochs, callbacks=[cbk])
+wgan.fit(train_images, train_labels, batch_size=BATCH_SIZE, epochs=epochs
+         , callbacks=[cbk, lr_reducer, lr_scheduler])
 
 """
 Display the last generated images:
