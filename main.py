@@ -75,8 +75,6 @@ tags = pd.read_csv('img_attr_dresses.csv')
 tags.index = tags['img_path']
 tags.head()
 
-print(len(images))
-
 X_all = []
 Y_all = []
 for i in tqdm(range(len(images))):
@@ -93,7 +91,6 @@ X_all = np.array(X_all)
 Y_all = np.array(Y_all)
 print(X_all.shape, Y_all.shape)
 
-X_all = np.zeros(15348)
 # WORKAROUND: operands could not be broadcast together with shapes
 train_num = int(len(X_all) * TRAIN_RATIO)
 if train_num > BATCH_SIZE:
