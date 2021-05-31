@@ -48,12 +48,14 @@ sample in this dataset is a 28x28 grayscale image associated with a label from
 """
 
 IMG_SHAPE = (64, 64, 3)
-BATCH_SIZE = 512
+# BATCH_SIZE = 512
+BATCH_SIZE = 100
 SAMPLE_NUM = 100
 TRAIN_RATIO = 0.7
 
 # Size of the noise vector
-noise_dim = 128
+# noise_dim = 128
+noise_dim = 100
 
 # Size of the customized vector
 num_classes = 35
@@ -197,7 +199,7 @@ def get_discriminator_model():
     )
 
     x = layers.Flatten()(x)
-    x = layers.Dropout(0.2)(x)
+    # x = layers.Dropout(0.2)(x)
 
     validity = layers.Dense(1)(x)
     label = layers.Dense(num_classes)(x)
@@ -246,36 +248,56 @@ def get_generator_model():
     noise = layers.Input(shape=(noise_dim,))
     label = layers.Input(shape=(num_classes,))
 
+    momentum = 0.9
+    d = 4
     model_input = layers.concatenate([noise, label])
-
-    x = layers.Dense(8 * 8 * 256, use_bias=False)(model_input)
-    x = layers.BatchNormalization()(x)
+    x = layers.Dense(d * d * 512, use_bias=False)(model_input)
+    x = layers.Reshape((d, d, 512))(x)
+    x = layers.BatchNormalization(momentum=momentum)(x)
     x = layers.LeakyReLU(0.2)(x)
 
-    x = layers.Reshape((8, 8, 256))(x)
-    x = upsample_block(
-        x,
-        128,
-        layers.LeakyReLU(0.2),
-        strides=(1, 1),
-        use_bias=False,
-        use_bn=True,
-        padding="same",
-        use_dropout=False,
-    )
-    x = upsample_block(
-        x,
-        64,
-        layers.LeakyReLU(0.2),
-        strides=(1, 1),
-        use_bias=False,
-        use_bn=True,
-        padding="same",
-        use_dropout=False,
-    )
-    x = upsample_block(
-        x, 3, layers.Activation("tanh"), strides=(1, 1), use_bias=False, use_bn=True
-    )
+    x = layers.Conv2DTranspose(kernel_size=5, filters=256, strides=2, padding='same')(x)
+    x = layers.BatchNormalization(momentum=momentum)(x)
+    x = layers.LeakyReLU(0.2)(x)
+
+    x = layers.Conv2DTranspose(kernel_size=5, filters=128, strides=2, padding='same')(x)
+    x = layers.BatchNormalization(momentum=momentum)(x)
+    x = layers.LeakyReLU(0.2)(x)
+
+    x = layers.Conv2DTranspose(kernel_size=5, filters=64, strides=2, padding='same')(x)
+    x = layers.BatchNormalization(momentum=momentum)(x)
+    x = layers.LeakyReLU(0.2)(x)
+
+    x = layers.Conv2DTranspose(kernel_size=5, filters=3, strides=2, padding='same', activation='tanh')(x)
+
+    # x = layers.Dense(8 * 8 * 256, use_bias=False)(model_input)
+    # x = layers.BatchNormalization()(x)
+    # x = layers.LeakyReLU(0.2)(x)
+    #
+    # x = layers.Reshape((8, 8, 256))(x)
+    # x = upsample_block(
+    #     x,
+    #     128,
+    #     layers.LeakyReLU(0.2),
+    #     strides=(1, 1),
+    #     use_bias=False,
+    #     use_bn=True,
+    #     padding="same",
+    #     use_dropout=False,
+    # )
+    # x = upsample_block(
+    #     x,
+    #     64,
+    #     layers.LeakyReLU(0.2),
+    #     strides=(1, 1),
+    #     use_bias=False,
+    #     use_bn=True,
+    #     padding="same",
+    #     use_dropout=False,
+    # )
+    # x = upsample_block(
+    #     x, 3, layers.Activation("tanh"), strides=(1, 1), use_bias=False, use_bn=True
+    # )
 
     g_model = keras.models.Model([noise, label], x, name="generator")
     return g_model

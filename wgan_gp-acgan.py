@@ -59,7 +59,7 @@ def lrelu(x, leak=0.2):
 def discriminator(image, reuse=None, is_training=is_training):
     momentum = 0.9
     with tf.variable_scope('discriminator', reuse=reuse):
-        h0 = lrelu(tf.layers.conv2d(image, kernel_size=5, filters=64, strides=2, padding='same'))
+        h0 = lrelu(tf.compat.v1.layers.conv2d(image, kernel_size=5, filters=64, strides=2, padding='same'))
 
         h1 = lrelu(tf.layers.conv2d(h0, kernel_size=5, filters=128, strides=2, padding='same'))
 
