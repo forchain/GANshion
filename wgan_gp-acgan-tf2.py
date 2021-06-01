@@ -123,17 +123,16 @@ class WGANGP():
         partial_gp_loss.__name__ = 'gradient_penalty'  # Keras requires function names
 
         self.critic_model = Model(inputs=[real_img, z_disc, label],
-                                  outputs=[valid, fake, validity_interpolated, valid_label, fake_label],
+                                  outputs=[valid, fake, validity_interpolated, valid_label],
                                   name='critic_model')
         self.critic_model.compile(loss=[
             self.wasserstein_loss,
             self.wasserstein_loss,
             partial_gp_loss,
-            'binary_crossentropy',
-           'binary_crossentropy'
+            'binary_crossentropy'
         ],
             optimizer=optimizer,
-            loss_weights=[1, 1, 10, 2, 2])
+            loss_weights=[1, 1, 10, 2])
 
         self.critic_model.summary()
 
@@ -272,7 +271,7 @@ class WGANGP():
 
                 # Train the critic
                 d_loss = self.critic_model.train_on_batch([imgs, noise, img_labels],
-                                                          [valid, fake, dummy, img_labels, img_labels])
+                                                          [valid, fake, dummy, img_labels])
 
             # ---------------------
             #  Train Generator
