@@ -270,16 +270,15 @@ class WGANGP():
                 # Sample generator input
                 noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
-                sampled_labels = self.get_random_tags()
-
                 # Train the critic
-                d_loss = self.critic_model.train_on_batch([imgs, noise, sampled_labels],
-                                                          [valid, fake, dummy, img_labels, sampled_labels])
+                d_loss = self.critic_model.train_on_batch([imgs, noise, img_labels],
+                                                          [valid, fake, dummy, img_labels, img_labels])
 
             # ---------------------
             #  Train Generator
             # ---------------------
 
+            sampled_labels = self.get_random_tags()
             g_loss = self.generator_model.train_on_batch([noise, sampled_labels], [valid, sampled_labels])
 
             # Plot the progress
@@ -292,14 +291,14 @@ class WGANGP():
 
     def get_random_tags(self):
         y = np.random.uniform(0.0, 1.0, [self.batch_size, self.num_classes]).astype(np.float32)
+        color = np.random.randint(0, 9)
+        length = np.random.randint(9, 14)
+        patten = np.random.randint(14, 20)
+        neckline = np.random.randint(20, 26)
+        sleeve = np.random.randint(26, 30)
+        fit = np.random.randint(30, 33)
+        occasion = np.random.randint(33, 35)
         for i in range(self.batch_size):
-            color = np.random.randint(0, 9)
-            length = np.random.randint(9, 14)
-            patten = np.random.randint(14, 20)
-            neckline = np.random.randint(20, 26)
-            sleeve = np.random.randint(26, 30)
-            fit = np.random.randint(30, 33)
-            occasion = np.random.randint(33, 35)
 
             y[i, :] = 0
 
